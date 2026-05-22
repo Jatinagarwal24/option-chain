@@ -4,7 +4,8 @@ const path = require('path');
 const { NseIndia } = require('stock-nse-india');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
 
 app.use(cors());
 // --- PASSWORD PROTECTION ---
