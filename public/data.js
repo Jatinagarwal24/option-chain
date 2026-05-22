@@ -5,9 +5,12 @@ const DataService = {
     processedData: null,
     previousData: null,
 
-    async fetchOptionChain(symbol, type) {
+    async fetchOptionChain(symbol, type, expiry = '') {
         const endpoint = type === 'equities' ? '/api/option-chain/equities' : '/api/option-chain/indices';
-        const res = await fetch(`${endpoint}?symbol=${encodeURIComponent(symbol)}`);
+        let url = `${endpoint}?symbol=${encodeURIComponent(symbol)}`;
+        if (expiry) url += `&expiry=${encodeURIComponent(expiry)}`;
+        
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!data || !data.records || !data.records.data) throw new Error('Invalid data structure');

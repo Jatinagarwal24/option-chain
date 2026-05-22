@@ -26,8 +26,12 @@ const App = {
         });
 
         // Symbol change
-        document.getElementById('symbolSelect')?.addEventListener('change', () => this.loadData());
-        document.getElementById('expirySelect')?.addEventListener('change', () => this.processAndRender());
+        document.getElementById('symbolSelect')?.addEventListener('change', () => {
+            const expSel = document.getElementById('expirySelect');
+            if(expSel) expSel.value = ''; // reset expiry
+            this.loadData();
+        });
+        document.getElementById('expirySelect')?.addEventListener('change', () => this.loadData());
         document.getElementById('strikeRange')?.addEventListener('change', () => this.processAndRender());
 
         // Refresh button
@@ -52,17 +56,19 @@ const App = {
             const select = document.getElementById('symbolSelect');
             const symbol = select.value;
             const type = select.selectedOptions[0]?.dataset.type || 'indices';
+            const expirySelect = document.getElementById('expirySelect');
+            const currentExpiry = expirySelect ? expirySelect.value : '';
 
-            const raw = await DataService.fetchOptionChain(symbol, type);
+            const raw = await DataService.fetchOptionChain(symbol, type, currentExpiry);
             DataService.rawData = raw;
 
             // Populate expiry dropdown
-            const expirySelect = document.getElementById('expirySelect');
-            const currentExpiry = expirySelect?.value;
             const expiryDates = raw.records.expiryDates || [];
             if (expirySelect) {
-                expirySelect.innerHTML = expiryDates.map((d, i) =>
-                    `<option value="${d}" ${d === currentExpiry || (!currentExpiry && i === 0) ? 'selected' : ''}>${d}</option>`
+                // If the currently selected expiry is not in the new list, clear it
+                const selected = expiryDates.includes(currentExpiry) ? currentExpiry : expiryDates[0];
+                expirySelect.innerHTML = expiryDates.map(d =>
+                    `<option value="${d}" ${d === selected ? 'selected' : ''}>${d}</option>`
                 ).join('');
             }
 

@@ -47,14 +47,16 @@ async function getCachedData(key, fetchFn) {
 
 app.get('/api/option-chain/indices', async (req, res) => {
     const symbol = req.query.symbol || 'NIFTY';
+    const expiry = req.query.expiry || '';
     try {
-        const data = await getCachedData(`idx_${symbol}`, () =>
-            nseIndia.getIndexOptionChain(symbol)
+        const cacheKey = `idx_${symbol}_${expiry}`;
+        const data = await getCachedData(cacheKey, () =>
+            nseIndia.getIndexOptionChain(symbol, expiry ? expiry : undefined)
         );
-        console.log(`[API] Option chain for ${symbol}: ${JSON.stringify(data).length} bytes`);
+        console.log(`[API] Option chain for ${symbol} (${expiry || 'default'}): ${JSON.stringify(data).length} bytes`);
         res.json(data);
     } catch (error) {
-        console.error(`[API] Error for ${symbol}:`, error.message);
+        console.error(`[API] Error for ${symbol} (${expiry}):`, error.message);
         res.status(500).json({ error: 'Failed to fetch option chain data', details: error.message });
     }
 });
