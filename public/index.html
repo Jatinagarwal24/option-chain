@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time Indian Stock Market Option Chain Analyzer - Track OI buildup, unwinding, PCR, Max Pain, and more with live NSE data">
+    <title>Option Chain Analyzer | Indian Market Live</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top Header Bar -->
+    <header id="header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">OptionPulse</span>
+            </div>
+            <div class="market-status" id="marketStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="symbol-selector">
+                <div class="selector-group">
+                    <label>Symbol</label>
+                    <select id="symbolSelect">
+                        <optgroup label="Indices">
+                            <option value="NIFTY" data-type="indices" selected>NIFTY 50</option>
+                            <option value="BANKNIFTY" data-type="indices">BANK NIFTY</option>
+                            <option value="FINNIFTY" data-type="indices">FIN NIFTY</option>
+                            <option value="MIDCPNIFTY" data-type="indices">MIDCAP NIFTY</option>
+                        </optgroup>
+                        <optgroup label="Stocks">
+                            <option value="RELIANCE" data-type="equities">RELIANCE</option>
+                            <option value="TCS" data-type="equities">TCS</option>
+                            <option value="HDFCBANK" data-type="equities">HDFC BANK</option>
+                            <option value="INFY" data-type="equities">INFOSYS</option>
+                            <option value="ICICIBANK" data-type="equities">ICICI BANK</option>
+                            <option value="SBIN" data-type="equities">SBI</option>
+                            <option value="TATAMOTORS" data-type="equities">TATA MOTORS</option>
+                            <option value="ITC" data-type="equities">ITC</option>
+                            <option value="BHARTIARTL" data-type="equities">BHARTI AIRTEL</option>
+                            <option value="TATASTEEL" data-type="equities">TATA STEEL</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="selector-group">
+                    <label>Expiry</label>
+                    <select id="expirySelect">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="selector-group">
+                    <label>Strikes</label>
+                    <select id="strikeRange">
+                        <option value="5">±5 Strikes</option>
+                        <option value="10" selected>±10 Strikes</option>
+                        <option value="15">±15 Strikes</option>
+                        <option value="20">±20 Strikes</option>
+                        <option value="all">All Strikes</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="spot-price" id="spotPrice">
+                <div class="spot-label">SPOT</div>
+                <div class="spot-value">--</div>
+                <div class="spot-change" id="spotChange">--</div>
+            </div>
+            <button class="refresh-btn" id="refreshBtn" title="Refresh Data">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+            </button>
+            <div class="auto-refresh">
+                <label class="toggle">
+                    <input type="checkbox" id="autoRefresh" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">Auto <span id="countdown">30</span>s</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Dashboard Metrics Bar -->
+    <section id="metricsBar">
+        <div class="metric-card" id="pcrCard">
+            <div class="metric-header">
+                <span class="metric-icon">⚖️</span>
+                <span class="metric-title">PUT-CALL RATIO</span>
+            </div>
+            <div class="metric-value" id="pcrValue">--</div>
+            <div class="metric-sub" id="pcrSentiment">--</div>
+        </div>
+        <div class="metric-card" id="maxPainCard">
+            <div class="metric-header">
+                <span class="metric-icon">🎯</span>
+                <span class="metric-title">MAX PAIN</span>
+            </div>
+            <div class="metric-value" id="maxPainValue">--</div>
+            <div class="metric-sub" id="maxPainDiff">--</div>
+        </div>
+        <div class="metric-card" id="totalOICard">
+            <div class="metric-header">
+                <span class="metric-icon">📊</span>
+                <span class="metric-title">TOTAL OI</span>
+            </div>
+            <div class="metric-value" id="totalOIValue">--</div>
+            <div class="metric-sub" id="totalOISub">CE: -- | PE: --</div>
+        </div>
+        <div class="metric-card" id="oiChangeCard">
+            <div class="metric-header">
+                <span class="metric-icon">📈</span>
+                <span class="metric-title">OI CHANGE</span>
+            </div>
+            <div class="metric-value" id="oiChangeValue">--</div>
+            <div class="metric-sub" id="oiChangeSub">CE: -- | PE: --</div>
+        </div>
+        <div class="metric-card" id="ivCard">
+            <div class="metric-header">
+                <span class="metric-icon">🌊</span>
+                <span class="metric-title">ATM IV</span>
+            </div>
+            <div class="metric-value" id="ivValue">--</div>
+            <div class="metric-sub" id="ivSub">CE: -- | PE: --</div>
+        </div>
+        <div class="metric-card" id="volumeCard">
+            <div class="metric-header">
+                <span class="metric-icon">🔥</span>
+                <span class="metric-title">TOTAL VOLUME</span>
+            </div>
+            <div class="metric-value" id="volumeValue">--</div>
+            <div class="metric-sub" id="volumeSub">CE: -- | PE: --</div>
+        </div>
+    </section>
+
+    <!-- Tab Navigation -->
+    <nav id="tabNav">
+        <button class="tab-btn active" data-tab="optionChain">Option Chain</button>
+        <button class="tab-btn" data-tab="oiAnalysis">OI Analysis</button>
+        <button class="tab-btn" data-tab="positionAnalysis">Position Analysis</button>
+        <button class="tab-btn" data-tab="supportResistance">Support & Resistance</button>
+        <button class="tab-btn" data-tab="greeks">Greeks & IV</button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="mainContent">
+
+        <!-- Tab: Option Chain Table -->
+        <div class="tab-content active" id="tab-optionChain">
+            <div class="table-wrapper">
+                <div class="table-header-label">
+                    <span class="call-label">📞 CALLS</span>
+                    <span class="strike-label">STRIKE</span>
+                    <span class="put-label">📉 PUTS</span>
+                </div>
+                <div class="table-scroll" id="optionChainTable">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="ce-col">OI</th>
+                                <th class="ce-col">Chg in OI</th>
+                                <th class="ce-col">Volume</th>
+                                <th class="ce-col">IV</th>
+                                <th class="ce-col">LTP</th>
+                                <th class="ce-col">Chg</th>
+                                <th class="ce-col">Bid Qty</th>
+                                <th class="ce-col">Bid</th>
+                                <th class="ce-col">Ask</th>
+                                <th class="ce-col">Ask Qty</th>
+                                <th class="strike-col">Strike</th>
+                                <th class="pe-col">Bid Qty</th>
+                                <th class="pe-col">Bid</th>
+                                <th class="pe-col">Ask</th>
+                                <th class="pe-col">Ask Qty</th>
+                                <th class="pe-col">Chg</th>
+                                <th class="pe-col">LTP</th>
+                                <th class="pe-col">IV</th>
+                                <th class="pe-col">Volume</th>
+                                <th class="pe-col">Chg in OI</th>
+                                <th class="pe-col">OI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="chainBody">
+                            <tr><td colspan="21" class="loading-cell">Loading option chain data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: OI Analysis -->
+        <div class="tab-content" id="tab-oiAnalysis">
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Open Interest Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="oiChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Change in Open Interest</h3>
+                    <div class="chart-container">
+                        <canvas id="oiChangeChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card full-width">
+                    <h3>OI vs Price Activity</h3>
+                    <div class="oi-price-legend">
+                        <span class="legend-item"><span class="legend-dot ce-dot"></span> Call OI</span>
+                        <span class="legend-item"><span class="legend-dot pe-dot"></span> Put OI</span>
+                        <span class="legend-item"><span class="legend-dot spot-dot"></span> Spot Price</span>
+                    </div>
+                    <div class="chart-container wide">
+                        <canvas id="oiPriceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Position Analysis -->
+        <div class="tab-content" id="tab-positionAnalysis">
+            <div class="position-grid">
+                <div class="position-card long-buildup">
+                    <div class="position-header">
+                        <span class="position-icon">🟢</span>
+                        <h3>Long Buildup</h3>
+                        <span class="position-badge">Price ↑ OI ↑</span>
+                    </div>
+                    <p class="position-desc">Fresh buying activity — Bullish sentiment. New positions being created with rising prices.</p>
+                    <div class="position-list" id="longBuildupList">
+                        <div class="loading-text">Analyzing positions...</div>
+                    </div>
+                </div>
+                <div class="position-card short-buildup">
+                    <div class="position-header">
+                        <span class="position-icon">🔴</span>
+                        <h3>Short Buildup</h3>
+                        <span class="position-badge">Price ↓ OI ↑</span>
+                    </div>
+                    <p class="position-desc">Fresh selling activity — Bearish sentiment. New short positions with falling prices.</p>
+                    <div class="position-list" id="shortBuildupList">
+                        <div class="loading-text">Analyzing positions...</div>
+                    </div>
+                </div>
+                <div class="position-card short-covering">
+                    <div class="position-header">
+                        <span class="position-icon">🟡</span>
+                        <h3>Short Covering</h3>
+                        <span class="position-badge">Price ↑ OI ↓</span>
+                    </div>
+                    <p class="position-desc">Shorts closing positions — Bullish reversal signal. Sellers buying back with rising prices.</p>
+                    <div class="position-list" id="shortCoveringList">
+                        <div class="loading-text">Analyzing positions...</div>
+                    </div>
+                </div>
+                <div class="position-card long-unwinding">
+                    <div class="position-header">
+                        <span class="position-icon">🟠</span>
+                        <h3>Long Unwinding</h3>
+                        <span class="position-badge">Price ↓ OI ↓</span>
+                    </div>
+                    <p class="position-desc">Longs closing positions — Bearish reversal signal. Buyers selling with falling prices.</p>
+                    <div class="position-list" id="longUnwindingList">
+                        <div class="loading-text">Analyzing positions...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Position Summary -->
+            <div class="position-summary-card">
+                <h3>📋 Position Activity Summary</h3>
+                <div class="summary-grid" id="positionSummary">
+                    <div class="loading-text">Loading summary...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Support & Resistance -->
+        <div class="tab-content" id="tab-supportResistance">
+            <div class="sr-grid">
+                <div class="sr-card">
+                    <h3>🛡️ Support Levels (Based on Put OI)</h3>
+                    <p class="sr-desc">Strikes with highest Put OI act as strong support — writers have sold puts and will defend these levels.</p>
+                    <div class="sr-levels" id="supportLevels">
+                        <div class="loading-text">Calculating...</div>
+                    </div>
+                </div>
+                <div class="sr-card">
+                    <h3>🚧 Resistance Levels (Based on Call OI)</h3>
+                    <p class="sr-desc">Strikes with highest Call OI act as strong resistance — writers have sold calls and will defend these levels.</p>
+                    <div class="sr-levels" id="resistanceLevels">
+                        <div class="loading-text">Calculating...</div>
+                    </div>
+                </div>
+                <div class="sr-card full-width">
+                    <h3>📊 OI-Based Support & Resistance Visualization</h3>
+                    <div class="chart-container wide">
+                        <canvas id="srChart"></canvas>
+                    </div>
+                </div>
+                <div class="sr-card full-width">
+                    <h3>🎯 Max Pain Analysis</h3>
+                    <p class="sr-desc">The strike price at which option writers (sellers) would incur the least financial loss. Markets tend to gravitate towards Max Pain near expiry.</p>
+                    <div class="chart-container wide">
+                        <canvas id="maxPainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Greeks & IV -->
+        <div class="tab-content" id="tab-greeks">
+            <div class="greeks-grid">
+                <div class="chart-card">
+                    <h3>🌊 Implied Volatility Smile</h3>
+                    <div class="chart-container">
+                        <canvas id="ivSmileChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>📊 IV Skew (Call vs Put)</h3>
+                    <div class="chart-container">
+                        <canvas id="ivSkewChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card full-width">
+                    <h3>📋 Greeks Table (Near ATM Strikes)</h3>
+                    <div class="table-scroll greeks-table-scroll">
+                        <table class="greeks-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="5" class="ce-section">CALL GREEKS</th>
+                                    <th class="strike-section">STRIKE</th>
+                                    <th colspan="5" class="pe-section">PUT GREEKS</th>
+                                </tr>
+                                <tr>
+                                    <th class="ce-col">Delta</th>
+                                    <th class="ce-col">Gamma</th>
+                                    <th class="ce-col">Theta</th>
+                                    <th class="ce-col">Vega</th>
+                                    <th class="ce-col">IV</th>
+                                    <th class="strike-col">Strike</th>
+                                    <th class="pe-col">IV</th>
+                                    <th class="pe-col">Vega</th>
+                                    <th class="pe-col">Theta</th>
+                                    <th class="pe-col">Gamma</th>
+                                    <th class="pe-col">Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="greeksBody">
+                                <tr><td colspan="11" class="loading-cell">Loading greeks data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="footer-left">
+            <span>Data Source: NSE India</span>
+            <span class="separator">|</span>
+            <span id="lastUpdated">Last Updated: --</span>
+        </div>
+        <div class="footer-right">
+            <span>⚠️ For educational purposes only. Not financial advice.</span>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader">
+            <div class="loader-ring"></div>
+            <div class="loader-text">Fetching live data from NSE...</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="utils.js"></script>
+    <script src="data.js"></script>
+    <script src="charts.js"></script>
+    <script src="ui.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
