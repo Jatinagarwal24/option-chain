@@ -149,21 +149,50 @@ const App = {
         if (!dot || !text) return;
 
         dot.className = 'status-dot';
-        if (status === 'live') {
-            dot.classList.add('live');
-            text.textContent = 'Market Live';
-        } else if (status === 'error') {
+        
+        if (status === 'error') {
             dot.classList.add('closed');
             text.textContent = 'Connection Error';
+            return;
+        }
+
+        // Determine if market is currently open in IST (UTC+5:30)
+        const now = new Date();
+        const utcHours = now.getUTCHours();
+        const utcMinutes = now.getUTCMinutes();
+        const utcDay = now.getUTCDay();
+        
+        let istMinutes = utcMinutes + 30;
+        let istHours = utcHours + 5;
+        let istDay = utcDay;
+
+        if (istMinutes >= 60) {
+            istMinutes -= 60;
+            istHours += 1;
+        }
+        if (istHours >= 24) {
+            istHours -= 24;
+            istDay = (istDay + 1) % 7;
+        }
+
+        const isWeekend = istDay === 0 || istDay === 6;
+        const currentMins = istHours * 60 + istMinutes;
+        // Market open: 9:15 AM (555 mins) to 3:30 PM (930 mins)
+        const isMarketOpen = !isWeekend && currentMins >= 555 && currentMins <= 930;
+
+        if (isMarketOpen) {
+            dot.classList.add('live');
+            text.textContent = 'Market Live';
         } else {
-            text.textContent = 'Connecting...';
+            dot.classList.add('closed');
+            text.textContent = 'Market Closed';
         }
     },
 
     showError(msg) {
         const tbody = document.getElementById('chainBody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="21" class="loading-cell" style="color:var(--accent-red)">
+            tbody.innerHTML = `<tr><td colspan="23" class="loading-cell" style="color:var(--accent-red)">
                 ❌ Error: ${msg}<br><small style="color:var(--text-muted)">Make sure the server is running and try again.</small>
             </td></tr>`;
         }

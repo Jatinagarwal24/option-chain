@@ -1,40 +1,41 @@
 /* ========== DESIGN TOKENS ========== */
 :root {
-    --bg-primary: #0a0e17;
-    --bg-secondary: #111827;
-    --bg-card: #1a2235;
-    --bg-card-hover: #1f2a40;
-    --bg-table-row: #151d2e;
-    --bg-table-row-alt: #1a2438;
-    --bg-atm: rgba(99, 102, 241, 0.12);
-    --bg-itm-ce: rgba(16, 185, 129, 0.06);
-    --bg-itm-pe: rgba(239, 68, 68, 0.06);
+    /* NSE Light Theme */
+    --bg-primary: #f0f2f5;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f9fafb;
+    --bg-table-row: #ffffff;
+    --bg-table-row-alt: #fafafa;
+    --bg-atm: #e2e8f0;
+    --bg-itm-ce: #fffcd6; /* NSE pale yellow for ITM Calls */
+    --bg-itm-pe: #fffcd6; /* NSE pale yellow for ITM Puts */
 
-    --text-primary: #e2e8f0;
-    --text-secondary: #94a3b8;
+    --text-primary: #334155;
+    --text-secondary: #475569;
     --text-muted: #64748b;
-    --text-bright: #f8fafc;
+    --text-bright: #0f172a;
 
-    --accent-green: #10b981;
-    --accent-green-dim: rgba(16, 185, 129, 0.15);
-    --accent-red: #ef4444;
-    --accent-red-dim: rgba(239, 68, 68, 0.15);
-    --accent-blue: #6366f1;
-    --accent-blue-dim: rgba(99, 102, 241, 0.15);
-    --accent-yellow: #f59e0b;
-    --accent-yellow-dim: rgba(245, 158, 11, 0.15);
-    --accent-orange: #f97316;
-    --accent-cyan: #06b6d4;
-    --accent-purple: #a855f7;
+    --accent-green: #059669;
+    --accent-green-dim: rgba(5, 150, 105, 0.1);
+    --accent-red: #dc2626;
+    --accent-red-dim: rgba(220, 38, 38, 0.1);
+    --accent-blue: #4a3b83; /* NSE Signature Purple/Blue */
+    --accent-blue-dim: rgba(74, 59, 131, 0.1);
+    --accent-yellow: #d97706;
+    --accent-yellow-dim: rgba(217, 119, 6, 0.1);
+    --accent-orange: #ea580c;
+    --accent-cyan: #0891b2;
+    --accent-purple: #7e22ce;
 
-    --border-color: rgba(148, 163, 184, 0.1);
-    --border-active: rgba(99, 102, 241, 0.5);
+    --border-color: #e2e8f0;
+    --border-active: #4a3b83;
 
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
-    --shadow-glow-green: 0 0 20px rgba(16, 185, 129, 0.15);
-    --shadow-glow-red: 0 0 20px rgba(239, 68, 68, 0.15);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+    --shadow-glow-green: none;
+    --shadow-glow-red: none;
 
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -67,13 +68,13 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 0.6rem 1.5rem;
-    background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(10, 14, 23, 0.95));
+    background: var(--bg-secondary); /* Solid white like NSE */
     border-bottom: 1px solid var(--border-color);
-    backdrop-filter: blur(20px);
     position: sticky;
     top: 0;
     z-index: 100;
     gap: 1rem;
+    box-shadow: var(--shadow-sm);
 }
 .header-left { display: flex; align-items: center; gap: 1.2rem; }
 .logo { display: flex; align-items: center; gap: 0.5rem; }
@@ -214,12 +215,12 @@ body {
 table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 thead { position: sticky; top: 0; z-index: 10; }
 thead th {
-    background: var(--bg-secondary); color: var(--text-muted); font-weight: 600;
+    background: var(--accent-blue); color: #ffffff; font-weight: 600;
     padding: 0.55rem 0.5rem; text-align: right; white-space: nowrap;
     border-bottom: 2px solid var(--border-color); font-size: 0.68rem;
     letter-spacing: 0.5px; text-transform: uppercase;
 }
-thead th.strike-col { text-align: center; background: var(--accent-blue-dim); color: var(--accent-blue); }
+thead th.strike-col { text-align: center; background: var(--accent-purple); color: #ffffff; }
 thead th.ce-col { border-right: none; }
 thead th.pe-col { border-left: none; }
 
@@ -349,10 +350,10 @@ td.oi-bar-cell .oi-bar.pe-bar { left: 0; background: var(--accent-red); }
     display: flex; align-items: center; justify-content: center;
     border-radius: 50%; flex-shrink: 0;
 }
-.sr-level-item.support { background: rgba(16, 185, 129, 0.06); }
-.sr-level-item.support .sr-rank { background: var(--accent-green-dim); color: var(--accent-green); }
-.sr-level-item.resistance { background: rgba(239, 68, 68, 0.06); }
-.sr-level-item.resistance .sr-rank { background: var(--accent-red-dim); color: var(--accent-red); }
+.sr-level-item.support { background: rgba(220, 38, 38, 0.06); }
+.sr-level-item.support .sr-rank { background: var(--accent-red-dim); color: var(--accent-red); }
+.sr-level-item.resistance { background: rgba(5, 150, 105, 0.06); }
+.sr-level-item.resistance .sr-rank { background: var(--accent-green-dim); color: var(--accent-green); }
 .sr-level-item .sr-strike {
     font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; color: var(--text-bright); min-width: 70px;
 }
@@ -362,8 +363,8 @@ td.oi-bar-cell .oi-bar.pe-bar { left: 0; background: var(--accent-red); }
 .sr-level-item .sr-bar {
     position: absolute; top: 0; bottom: 0; opacity: 0.08; border-radius: var(--radius-sm);
 }
-.sr-level-item.support .sr-bar { left: 0; background: var(--accent-green); }
-.sr-level-item.resistance .sr-bar { left: 0; background: var(--accent-red); }
+.sr-level-item.support .sr-bar { left: 0; background: var(--accent-red); }
+.sr-level-item.resistance .sr-bar { left: 0; background: var(--accent-green); }
 
 /* ========== GREEKS TABLE ========== */
 .greeks-table-scroll { overflow-x: auto; }

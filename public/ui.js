@@ -24,7 +24,11 @@ const UI = {
             const ceOIHigh = ceOIPercent > 70 ? 'oi-high-ce' : '';
             const peOIHigh = peOIPercent > 70 ? 'oi-high-pe' : '';
 
+            const cePrevOI = (ce.openInterest || 0) - (ce.changeinOpenInterest || 0);
+            const pePrevOI = (pe.openInterest || 0) - (pe.changeinOpenInterest || 0);
+
             html += `<tr class="${rowClass}">
+                <td class="ce-col">${formatNumber(Math.max(0, cePrevOI))}</td>
                 <td class="ce-col ${ceOIHigh}">${formatNumber(ce.openInterest)}</td>
                 <td class="ce-col ${getChangeClass(ce.changeinOpenInterest)}">${formatNumber(ce.changeinOpenInterest)}</td>
                 <td class="ce-col">${formatNumber(ce.totalTradedVolume)}</td>
@@ -46,6 +50,7 @@ const UI = {
                 <td class="pe-col">${formatNumber(pe.totalTradedVolume)}</td>
                 <td class="pe-col ${getChangeClass(pe.changeinOpenInterest)}">${formatNumber(pe.changeinOpenInterest)}</td>
                 <td class="pe-col ${peOIHigh}">${formatNumber(pe.openInterest)}</td>
+                <td class="pe-col">${formatNumber(Math.max(0, pePrevOI))}</td>
             </tr>`;
         });
         tbody.innerHTML = html;

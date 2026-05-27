@@ -111,8 +111,8 @@ const Charts = {
             data: {
                 labels,
                 datasets: [
-                    { label: 'Call OI (Resistance)', data: ceOI, backgroundColor: labels.map(s => s >= data.spotPrice ? CHART_COLORS.redBg : 'rgba(239,68,68,0.05)'), borderColor: CHART_COLORS.red, borderWidth: 1 },
-                    { label: 'Put OI (Support)', data: peOI, backgroundColor: labels.map(s => s <= data.spotPrice ? CHART_COLORS.greenBg : 'rgba(16,185,129,0.05)'), borderColor: CHART_COLORS.green, borderWidth: 1 }
+                    { label: 'Call OI (Resistance)', data: ceOI, backgroundColor: labels.map(s => s >= data.spotPrice ? CHART_COLORS.greenBg : 'rgba(5,150,105,0.05)'), borderColor: CHART_COLORS.green, borderWidth: 1 },
+                    { label: 'Put OI (Support)', data: peOI, backgroundColor: labels.map(s => s <= data.spotPrice ? CHART_COLORS.redBg : 'rgba(220,38,38,0.05)'), borderColor: CHART_COLORS.red, borderWidth: 1 }
                 ]
             },
             options: {
