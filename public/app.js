@@ -59,8 +59,12 @@ const App = {
             const expirySelect = document.getElementById('expirySelect');
             const currentExpiry = expirySelect ? expirySelect.value : '';
 
-            const raw = await DataService.fetchOptionChain(symbol, type, currentExpiry);
+            const [raw, deliveryRaw] = await Promise.all([
+                DataService.fetchOptionChain(symbol, type, currentExpiry),
+                DataService.fetchDeliveryData(symbol, type)
+            ]);
             DataService.rawData = raw;
+            DataService.deliveryData = deliveryRaw;
 
             // Populate expiry dropdown
             const expiryDates = raw.records.expiryDates || [];
@@ -92,6 +96,7 @@ const App = {
         const range = document.getElementById('strikeRange')?.value || '10';
 
         const data = DataService.processData(DataService.rawData, expiry, range);
+        data.deliveryData = DataService.deliveryData;
         DataService.processedData = data;
 
         // Render everything

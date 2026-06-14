@@ -17,6 +17,18 @@ const DataService = {
         return data;
     },
 
+    async fetchDeliveryData(symbol, type) {
+        if (type !== 'equities') return null; // Delivery data is only for equities
+        try {
+            const res = await fetch(`/api/equity-trade-info?symbol=${encodeURIComponent(symbol)}`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            console.error("Failed to fetch delivery data", e);
+            return null;
+        }
+    },
+
     processData(raw, selectedExpiry, strikeRange) {
         const records = raw.records;
         const filtered = raw.filtered;
