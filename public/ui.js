@@ -133,7 +133,7 @@ const UI = {
                 else if (delivPct < 30) valEl.className = 'metric-value bearish';
                 else valEl.className = 'metric-value';
                 
-                deliveryCard.style.display = 'flex';
+                deliveryCard.style.display = 'block';
             } else {
                 deliveryCard.style.display = 'none';
             }

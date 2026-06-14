@@ -168,7 +168,8 @@ app.get('/api/equity-trade-info', async (req, res) => {
                  hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
              }
              const baseVol = 1000000 + (Math.abs(hash) % 20000000);
-             const pct = 30 + (Math.abs(hash) % 45) + (Math.abs(hash) % 100) / 100; // Between 30% and 75%
+             // Let's generate a range between 15% and 85% so we can see both red and green
+             const pct = 15 + (Math.abs(hash) % 70) + (Math.abs(hash) % 100) / 100; 
              
              res.json({
                  securityWiseDP: {
