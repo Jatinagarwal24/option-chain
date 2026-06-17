@@ -81,70 +81,64 @@ app.get('/api/historical-delivery', async (req, res) => {
     const symbol = req.query.symbol || 'RELIANCE';
     try {
         const db = require('./db');
+        const rows = db.getHistory(symbol);
+
+        // If we have actual data in the DB, use it!
+        if (rows && rows.length > 5) {
+            console.log(`[API] Serving genuine historical data for ${symbol} (${rows.length} records)`);
+            return res.json({ symbol, pattern: 3, data: rows });
+        }
+
+        // --- FALLBACK MOCK GENERATOR (if sync hasn't been run or data missing) ---
+        console.log(`[API] No local DB data found for ${symbol}. Falling back to mock data...`);
+        let hash = 0;
+        for (let i = 0; i < symbol.length; i++) {
+            hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
+        }
         
-        db.all("SELECT * FROM historical_delivery WHERE symbol = ? ORDER BY date ASC", [symbol], (err, rows) => {
-            if (err) {
-                console.error(`[API] DB Error for ${symbol}:`, err.message);
-                return res.status(500).json({ error: 'Database error' });
-            }
+        const pattern = Math.abs(hash) % 3;
+        const data = [];
+        let currentPrice = 100 + (Math.abs(hash) % 2000);
+        let currentDeliveryPct = 20 + (Math.abs(hash) % 20);
+        
+        const today = new Date();
+        for(let i = 30; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            
+            if (date.getDay() === 0 || date.getDay() === 6) continue;
 
-            // If we have actual data in the DB, use it!
-            if (rows && rows.length > 5) {
-                console.log(`[API] Serving genuine historical data for ${symbol} (${rows.length} records)`);
-                return res.json({ symbol, pattern: 3, data: rows });
-            }
+            const dayVolatility = (Math.random() - 0.5) * (currentPrice * 0.02);
+            let priceChange = dayVolatility;
+            let delivChange = (Math.random() - 0.5) * 5;
 
-            // --- FALLBACK MOCK GENERATOR (if sync hasn't been run or data missing) ---
-            console.log(`[API] No local DB data found for ${symbol}. Falling back to mock data...`);
-            let hash = 0;
-            for (let i = 0; i < symbol.length; i++) {
-                hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
+            if (pattern === 0) {
+                priceChange += currentPrice * 0.005; 
+                delivChange += 1.5; 
+            } else if (pattern === 1) {
+                priceChange -= currentPrice * 0.005; 
+                delivChange += 1.5; 
             }
             
-            const pattern = Math.abs(hash) % 3;
-            const data = [];
-            let currentPrice = 100 + (Math.abs(hash) % 2000);
-            let currentDeliveryPct = 20 + (Math.abs(hash) % 20);
-            
-            const today = new Date();
-            for(let i = 30; i >= 0; i--) {
-                const date = new Date(today);
-                date.setDate(today.getDate() - i);
-                
-                if (date.getDay() === 0 || date.getDay() === 6) continue;
+            currentPrice += priceChange;
+            currentDeliveryPct += delivChange;
+            if (currentDeliveryPct > 95) currentDeliveryPct = 95;
+            if (currentDeliveryPct < 10) currentDeliveryPct = 10;
+            if (currentPrice < 1) currentPrice = 1;
 
-                const dayVolatility = (Math.random() - 0.5) * (currentPrice * 0.02);
-                let priceChange = dayVolatility;
-                let delivChange = (Math.random() - 0.5) * 5;
+            const volume = 100000 + Math.floor(Math.random() * 500000);
+            const deliveryVolume = Math.floor(volume * (currentDeliveryPct / 100));
 
-                if (pattern === 0) {
-                    priceChange += currentPrice * 0.005; 
-                    delivChange += 1.5; 
-                } else if (pattern === 1) {
-                    priceChange -= currentPrice * 0.005; 
-                    delivChange += 1.5; 
-                }
-                
-                currentPrice += priceChange;
-                currentDeliveryPct += delivChange;
-                if (currentDeliveryPct > 95) currentDeliveryPct = 95;
-                if (currentDeliveryPct < 10) currentDeliveryPct = 10;
-                if (currentPrice < 1) currentPrice = 1;
-
-                const volume = 100000 + Math.floor(Math.random() * 500000);
-                const deliveryVolume = Math.floor(volume * (currentDeliveryPct / 100));
-
-                data.push({
-                    date: date.toISOString().split('T')[0],
-                    closePrice: parseFloat(currentPrice.toFixed(2)),
-                    volume: volume,
-                    deliveryVolume: deliveryVolume,
-                    deliveryPercentage: parseFloat(currentDeliveryPct.toFixed(2))
-                });
-            }
-            
-            res.json({ symbol, pattern, data });
-        });
+            data.push({
+                date: date.toISOString().split('T')[0],
+                closePrice: parseFloat(currentPrice.toFixed(2)),
+                volume: volume,
+                deliveryVolume: deliveryVolume,
+                deliveryPercentage: parseFloat(currentDeliveryPct.toFixed(2))
+            });
+        }
+        
+        res.json({ symbol, pattern, data });
     } catch (error) {
         console.error(`[API] Historical delivery error for ${symbol}:`, error.message);
         res.status(500).json({ error: 'Failed to fetch historical delivery' });

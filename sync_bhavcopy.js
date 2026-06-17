@@ -73,37 +73,29 @@ async function processFile(filePath, dateObj) {
             })
             .on('end', () => {
                 console.log(`Parsed ${rows.length} rows for ${isoDate}`);
-                db.serialize(() => {
-                    db.run("BEGIN TRANSACTION");
-                    const stmt = db.prepare(`
-                        INSERT OR IGNORE INTO historical_delivery 
-                        (symbol, date, closePrice, volume, deliveryVolume, deliveryPercentage) 
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    `);
-                    
-                    rows.forEach(row => {
-                        // Some stocks might not have delivery data, DELIV_PER could be '-'
-                        if (!isNaN(row.deliveryPercentage)) {
-                            stmt.run(row.symbol, row.date, row.closePrice, row.volume, row.deliveryVolume, row.deliveryPercentage);
+                
+                // Filter out invalid delivery data
+                const validRows = rows.filter(r => !isNaN(r.deliveryPercentage));
+                
+                try {
+                    db.insertMany(validRows);
+                    console.log(`Inserted data for ${isoDate}`);
+                } catch (e) {
+                    console.error(`Failed to insert data for ${isoDate}:`, e.message);
+                }
+
+                // Small timeout to allow Windows to release the file handle
+                setTimeout(() => {
+                    try {
+                        if (fs.existsSync(filePath)) {
+                            fs.unlinkSync(filePath);
                         }
-                    });
-                    
-                    stmt.finalize();
-                    db.run("COMMIT", () => {
-                        console.log(`Inserted data for ${isoDate}`);
-                        // Small timeout to allow Windows to release the file handle
-                        setTimeout(() => {
-                            try {
-                                if (fs.existsSync(filePath)) {
-                                    fs.unlinkSync(filePath);
-                                }
-                            } catch (e) {
-                                console.log(`Could not delete ${filePath} immediately (file locked), skipping cleanup.`);
-                            }
-                        }, 500);
-                        resolve();
-                    });
-                });
+                    } catch (e) {
+                        console.log(`Could not delete ${filePath} immediately (file locked), skipping cleanup.`);
+                    }
+                }, 500);
+                
+                resolve();
             })
             .on('error', reject);
     });
