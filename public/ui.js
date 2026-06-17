@@ -116,28 +116,7 @@ const UI = {
         const tsEl = document.getElementById('lastUpdated');
         if (tsEl) tsEl.textContent = `Last Updated: ${data.timestamp}`;
 
-        // Delivery Data
-        const deliveryCard = document.getElementById('deliveryCard');
-        if (deliveryCard) {
-            if (data.deliveryData && data.deliveryData.securityWiseDP) {
-                const dp = data.deliveryData.securityWiseDP;
-                const delivQty = dp.deliveryQuantity || 0;
-                const delivPct = dp.deliveryToTradedQuantity || 0;
-                
-                document.getElementById('deliveryValue').textContent = `${delivPct.toFixed(2)}%`;
-                document.getElementById('deliverySub').textContent = `Vol: ${formatNumber(delivQty)}`;
-                
-                // Set color based on percentage
-                const valEl = document.getElementById('deliveryValue');
-                if (delivPct > 60) valEl.className = 'metric-value bullish';
-                else if (delivPct < 30) valEl.className = 'metric-value bearish';
-                else valEl.className = 'metric-value';
-                
-                deliveryCard.style.display = 'block';
-            } else {
-                deliveryCard.style.display = 'none';
-            }
-        }
+
     },
 
     renderPositions(data) {
@@ -239,5 +218,25 @@ const UI = {
             </tr>`;
         });
         tbody.innerHTML = html || '<tr><td colspan="11" class="loading-cell">No greeks data available</td></tr>';
+    },
+
+    renderSmartMoneyAnalysis(analysis) {
+        const reportEl = document.getElementById('smartMoneyReport');
+        if (!reportEl) return;
+        
+        if (!analysis) {
+            reportEl.innerHTML = '<div class="loading-text">Not enough historical data to analyze delivery patterns.</div>';
+            return;
+        }
+
+        let color = 'var(--text-color)';
+        if (analysis.type === 'bullish') color = 'var(--accent-green)';
+        else if (analysis.type === 'bearish') color = 'var(--accent-red)';
+        else color = 'var(--accent-yellow)';
+
+        reportEl.innerHTML = `
+            <h2 style="color: ${color}; margin-bottom: 15px;">${analysis.title}</h2>
+            <p style="color: var(--text-muted);">${analysis.description}</p>
+        `;
     }
 };

@@ -17,16 +17,66 @@ const DataService = {
         return data;
     },
 
-    async fetchDeliveryData(symbol, type) {
-        if (type !== 'equities') return null; // Delivery data is only for equities
+
+
+    async fetchSymbols() {
         try {
-            const res = await fetch(`/api/equity-trade-info?symbol=${encodeURIComponent(symbol)}`);
+            const res = await fetch('/api/symbols');
+            if (!res.ok) return [];
+            return await res.json();
+        } catch (e) {
+            console.error("Failed to fetch symbols", e);
+            return [];
+        }
+    },
+
+    async fetchHistoricalDelivery(symbol) {
+        try {
+            const res = await fetch(`/api/historical-delivery?symbol=${encodeURIComponent(symbol)}`);
             if (!res.ok) return null;
             return await res.json();
         } catch (e) {
-            console.error("Failed to fetch delivery data", e);
+            console.error("Failed to fetch historical delivery", e);
             return null;
         }
+    },
+
+    analyzeSmartMoney(histData) {
+        if (!histData || !histData.data || histData.data.length < 5) return null;
+        
+        const data = histData.data;
+        const first = data[0];
+        const last = data[data.length - 1];
+        
+        const priceChange = ((last.closePrice - first.closePrice) / first.closePrice) * 100;
+        const avgDeliveryFirstHalf = data.slice(0, Math.floor(data.length/2)).reduce((sum, d) => sum + d.deliveryPercentage, 0) / Math.floor(data.length/2);
+        const avgDeliverySecondHalf = data.slice(Math.floor(data.length/2)).reduce((sum, d) => sum + d.deliveryPercentage, 0) / Math.ceil(data.length/2);
+        
+        const deliveryTrend = avgDeliverySecondHalf - avgDeliveryFirstHalf;
+
+        let title = '';
+        let description = '';
+        let type = '';
+        let fiiTrendText = '';
+
+        if (deliveryTrend > 2 && priceChange >= -2) {
+            title = '🟢 Slow Accumulation Detected';
+            fiiTrendText = '<br><br><b>FII / DII Holding:</b> Expected to be <b>INCREASING</b>. Heavy delivery buying while the price is stable heavily implies institutional accumulation.';
+            description = `Over the last 30 days, delivery percentage has been increasing (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price remained relatively stable or moved up (${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}%). This indicates that "smart money" might be slowly building a position in this stock without causing a price spike. This could be a good investment opportunity, suggesting a potential future price increase.` + fiiTrendText;
+            type = 'bullish';
+        } else if (deliveryTrend > 2 && priceChange < -2) {
+            title = '🔴 Distribution Detected';
+            fiiTrendText = '<br><br><b>FII / DII Holding:</b> Expected to be <b>DECREASING</b>. Heavy delivery while price is falling implies large institutions are dumping their holdings.';
+            description = `Over the last 30 days, delivery percentage has been increasing (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price has been falling (${priceChange.toFixed(2)}%). This suggests that large players might be slowly offloading their positions (distribution) to retail buyers. Proceed with caution.` + fiiTrendText;
+            type = 'bearish';
+        } else {
+            title = '🟡 Neutral / Indecisive';
+            fiiTrendText = '<br><br><b>FII / DII Holding:</b> Expected to be <b>STABLE / UNCHANGED</b>. No significant institutional activity detected.';
+            description = `The historical delivery data does not show a clear pattern of sustained accumulation or distribution. The delivery trend is mostly flat or random, and price action is mixed. Wait for a clearer trend to emerge before making investment decisions based on delivery.` + fiiTrendText;
+            type = 'neutral';
+        }
+
+        return { title, description, type, priceChange, avgDeliveryFirstHalf, avgDeliverySecondHalf };
     },
 
     processData(raw, selectedExpiry, strikeRange) {

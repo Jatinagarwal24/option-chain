@@ -27,26 +27,10 @@
             <div class="symbol-selector">
                 <div class="selector-group">
                     <label>Symbol</label>
-                    <select id="symbolSelect">
-                        <optgroup label="Indices">
-                            <option value="NIFTY" data-type="indices" selected>NIFTY 50</option>
-                            <option value="BANKNIFTY" data-type="indices">BANK NIFTY</option>
-                            <option value="FINNIFTY" data-type="indices">FIN NIFTY</option>
-                            <option value="MIDCPNIFTY" data-type="indices">MIDCAP NIFTY</option>
-                        </optgroup>
-                        <optgroup label="Stocks">
-                            <option value="RELIANCE" data-type="equities">RELIANCE</option>
-                            <option value="TCS" data-type="equities">TCS</option>
-                            <option value="HDFCBANK" data-type="equities">HDFC BANK</option>
-                            <option value="INFY" data-type="equities">INFOSYS</option>
-                            <option value="ICICIBANK" data-type="equities">ICICI BANK</option>
-                            <option value="SBIN" data-type="equities">SBI</option>
-                            <option value="TATAMOTORS" data-type="equities">TATA MOTORS</option>
-                            <option value="ITC" data-type="equities">ITC</option>
-                            <option value="BHARTIARTL" data-type="equities">BHARTI AIRTEL</option>
-                            <option value="TATASTEEL" data-type="equities">TATA STEEL</option>
-                        </optgroup>
-                    </select>
+                    <input type="text" id="symbolSelect" list="symbolList" value="RELIANCE" placeholder="Search NSE Symbol..." autocomplete="off">
+                    <datalist id="symbolList">
+                        <!-- Populated dynamically -->
+                    </datalist>
                 </div>
                 <div class="selector-group">
                     <label>Expiry</label>
@@ -138,14 +122,7 @@
             <div class="metric-value" id="volumeValue">--</div>
             <div class="metric-sub" id="volumeSub">CE: -- | PE: --</div>
         </div>
-        <div class="metric-card" id="deliveryCard" style="display: none;">
-            <div class="metric-header">
-                <span class="metric-icon">📦</span>
-                <span class="metric-title">DELIVERY DATA</span>
-            </div>
-            <div class="metric-value" id="deliveryValue">--%</div>
-            <div class="metric-sub" id="deliverySub">Vol: --</div>
-        </div>
+
     </section>
 
     <!-- Tab Navigation -->
@@ -155,6 +132,7 @@
         <button class="tab-btn" data-tab="positionAnalysis">Position Analysis</button>
         <button class="tab-btn" data-tab="supportResistance">Support & Resistance</button>
         <button class="tab-btn" data-tab="greeks">Greeks & IV</button>
+        <button class="tab-btn" data-tab="smartMoney">Smart Money Analysis</button>
     </nav>
 
     <!-- Main Content Area -->
@@ -368,6 +346,24 @@
                                 <tr><td colspan="11" class="loading-cell">Loading greeks data...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Smart Money Analysis -->
+        <div class="tab-content" id="tab-smartMoney">
+            <div class="sr-grid">
+                <div class="sr-card full-width">
+                    <div id="smartMoneyReport" style="padding: 20px; font-size: 1.1em; line-height: 1.6;">
+                        <div class="loading-text">Analyzing delivery patterns...</div>
+                    </div>
+                </div>
+                <div class="sr-card full-width">
+                    <h3>📈 Historical Delivery & Price (Last 30 Days)</h3>
+                    <p class="sr-desc">Analyze how delivery percentage corresponds with price movement to identify slow accumulation or distribution by smart money.</p>
+                    <div class="chart-container wide">
+                        <canvas id="deliveryHistoryChart"></canvas>
                     </div>
                 </div>
             </div>

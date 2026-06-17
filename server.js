@@ -61,6 +61,96 @@ app.get('/api/option-chain/indices', async (req, res) => {
     }
 });
 
+app.get('/api/symbols', async (req, res) => {
+    try {
+        // Cache symbols for 1 hour since they don't change often
+        const cached = cache['all_symbols'];
+        if (cached && (Date.now() - cached.time) < 3600000) {
+            return res.json(cached.data);
+        }
+        const data = await nseIndia.getAllStockSymbols();
+        cache['all_symbols'] = { data, time: Date.now() };
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Symbols error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch symbols' });
+    }
+});
+
+app.get('/api/historical-delivery', async (req, res) => {
+    const symbol = req.query.symbol || 'RELIANCE';
+    try {
+        const db = require('./db');
+        
+        db.all("SELECT * FROM historical_delivery WHERE symbol = ? ORDER BY date ASC", [symbol], (err, rows) => {
+            if (err) {
+                console.error(`[API] DB Error for ${symbol}:`, err.message);
+                return res.status(500).json({ error: 'Database error' });
+            }
+
+            // If we have actual data in the DB, use it!
+            if (rows && rows.length > 5) {
+                console.log(`[API] Serving genuine historical data for ${symbol} (${rows.length} records)`);
+                return res.json({ symbol, pattern: 3, data: rows });
+            }
+
+            // --- FALLBACK MOCK GENERATOR (if sync hasn't been run or data missing) ---
+            console.log(`[API] No local DB data found for ${symbol}. Falling back to mock data...`);
+            let hash = 0;
+            for (let i = 0; i < symbol.length; i++) {
+                hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            
+            const pattern = Math.abs(hash) % 3;
+            const data = [];
+            let currentPrice = 100 + (Math.abs(hash) % 2000);
+            let currentDeliveryPct = 20 + (Math.abs(hash) % 20);
+            
+            const today = new Date();
+            for(let i = 30; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                
+                if (date.getDay() === 0 || date.getDay() === 6) continue;
+
+                const dayVolatility = (Math.random() - 0.5) * (currentPrice * 0.02);
+                let priceChange = dayVolatility;
+                let delivChange = (Math.random() - 0.5) * 5;
+
+                if (pattern === 0) {
+                    priceChange += currentPrice * 0.005; 
+                    delivChange += 1.5; 
+                } else if (pattern === 1) {
+                    priceChange -= currentPrice * 0.005; 
+                    delivChange += 1.5; 
+                }
+                
+                currentPrice += priceChange;
+                currentDeliveryPct += delivChange;
+                if (currentDeliveryPct > 95) currentDeliveryPct = 95;
+                if (currentDeliveryPct < 10) currentDeliveryPct = 10;
+                if (currentPrice < 1) currentPrice = 1;
+
+                const volume = 100000 + Math.floor(Math.random() * 500000);
+                const deliveryVolume = Math.floor(volume * (currentDeliveryPct / 100));
+
+                data.push({
+                    date: date.toISOString().split('T')[0],
+                    closePrice: parseFloat(currentPrice.toFixed(2)),
+                    volume: volume,
+                    deliveryVolume: deliveryVolume,
+                    deliveryPercentage: parseFloat(currentDeliveryPct.toFixed(2))
+                });
+            }
+            
+            res.json({ symbol, pattern, data });
+        });
+    } catch (error) {
+        console.error(`[API] Historical delivery error for ${symbol}:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch historical delivery' });
+    }
+});
+
 app.get('/api/option-chain/equities', async (req, res) => {
     const symbol = req.query.symbol || 'RELIANCE';
     try {
@@ -144,45 +234,30 @@ app.get('/api/market-status', async (req, res) => {
     }
 });
 
-app.get('/api/equity-trade-info', async (req, res) => {
-    const symbol = req.query.symbol || 'RELIANCE';
-    try {
-        const data = await getCachedData(`tradeinfo_${symbol}`, () =>
-            nseIndia.getEquityTradeInfo(symbol)
-        );
-        res.json(data);
-    } catch (error) {
-        console.error(`[API] Trade info error for ${symbol}:`, error.message);
-        // Fallback to try getEquityDetails if trade info fails
-        try {
-            const dataDetails = await getCachedData(`details_${symbol}`, () =>
-                nseIndia.getEquityDetails(symbol)
-            );
-            res.json(dataDetails);
-        } catch (err2) {
-             console.log(`[API] NSE blocked quote-equity for ${symbol}, returning mock data for demonstration.`);
-             
-             // Generate deterministic mock data based on the symbol name
-             let hash = 0;
-             for (let i = 0; i < symbol.length; i++) {
-                 hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
-             }
-             const baseVol = 1000000 + (Math.abs(hash) % 20000000);
-             // Let's generate a range between 15% and 85% so we can see both red and green
-             const pct = 15 + (Math.abs(hash) % 70) + (Math.abs(hash) % 100) / 100; 
-             
-             res.json({
-                 securityWiseDP: {
-                     quantityTraded: baseVol,
-                     deliveryQuantity: Math.round(baseVol * (pct / 100)),
-                     deliveryToTradedQuantity: pct
-                 }
-             });
-        }
-    }
-});
+
+
+const { exec } = require('child_process');
 
 app.listen(PORT, () => {
     console.log(`\n🚀 Option Chain Analyzer running at http://localhost:${PORT}`);
     console.log(`📊 Open your browser and navigate to http://localhost:${PORT}\n`);
+    
+    // Automate for Render: Run sync on startup
+    console.log("⏳ Starting automated background Bhavcopy sync (this ensures Render always has fresh data)...");
+    exec('npm run sync', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`[Automated Sync Error]: ${error.message}`);
+            return;
+        }
+        console.log(`✅ Automated Sync Complete! DB is up to date.`);
+    });
+
+    // Automate daily sync at 19:00 IST (13:30 UTC)
+    setInterval(() => {
+        const now = new Date();
+        if (now.getUTCHours() === 13 && now.getUTCMinutes() === 30) {
+            console.log("⏳ Running scheduled daily Bhavcopy sync...");
+            exec('npm run sync');
+        }
+    }, 60000); // Check every minute
 });

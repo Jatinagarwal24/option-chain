@@ -6,11 +6,20 @@ const App = {
     countdownTimer: null,
     isLoading: false,
 
-    init() {
+    async init() {
         chartDefaults();
+        await this.loadSymbols();
         this.bindEvents();
         this.loadData();
         this.startAutoRefresh();
+    },
+
+    async loadSymbols() {
+        const symbols = await DataService.fetchSymbols();
+        const list = document.getElementById('symbolList');
+        if (list && symbols.length > 0) {
+            list.innerHTML = symbols.map(s => `<option value="${s}">`).join('');
+        }
     },
 
     bindEvents() {
@@ -26,11 +35,21 @@ const App = {
         });
 
         // Symbol change
-        document.getElementById('symbolSelect')?.addEventListener('change', () => {
-            const expSel = document.getElementById('expirySelect');
-            if(expSel) expSel.value = ''; // reset expiry
-            this.loadData();
-        });
+        const symInput = document.getElementById('symbolSelect');
+        if (symInput) {
+            symInput.addEventListener('change', () => {
+                const expSel = document.getElementById('expirySelect');
+                if(expSel) expSel.value = ''; // reset expiry
+                this.loadData();
+            });
+            // Also trigger on Enter key
+            symInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    symInput.blur();
+                    this.loadData();
+                }
+            });
+        }
         document.getElementById('expirySelect')?.addEventListener('change', () => this.loadData());
         document.getElementById('strikeRange')?.addEventListener('change', () => this.processAndRender());
 
@@ -54,17 +73,19 @@ const App = {
 
         try {
             const select = document.getElementById('symbolSelect');
-            const symbol = select.value;
-            const type = select.selectedOptions[0]?.dataset.type || 'indices';
+            const symbol = select.value.toUpperCase();
+            // Since we don't have the select dataset anymore, default to equities unless it's a known index
+            const indices = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'];
+            const type = indices.includes(symbol) ? 'indices' : 'equities';
             const expirySelect = document.getElementById('expirySelect');
             const currentExpiry = expirySelect ? expirySelect.value : '';
 
-            const [raw, deliveryRaw] = await Promise.all([
+            const [raw, histDeliveryRaw] = await Promise.all([
                 DataService.fetchOptionChain(symbol, type, currentExpiry),
-                DataService.fetchDeliveryData(symbol, type)
+                DataService.fetchHistoricalDelivery(symbol)
             ]);
             DataService.rawData = raw;
-            DataService.deliveryData = deliveryRaw;
+            DataService.histDeliveryData = histDeliveryRaw;
 
             // Populate expiry dropdown
             const expiryDates = raw.records.expiryDates || [];
@@ -96,7 +117,6 @@ const App = {
         const range = document.getElementById('strikeRange')?.value || '10';
 
         const data = DataService.processData(DataService.rawData, expiry, range);
-        data.deliveryData = DataService.deliveryData;
         DataService.processedData = data;
 
         // Render everything
@@ -114,6 +134,13 @@ const App = {
         Charts.renderMaxPainChart(data);
         Charts.renderIVSmileChart(data);
         Charts.renderIVSkewChart(data);
+
+        // Render Smart Money
+        const smartMoneyAnalysis = DataService.analyzeSmartMoney(DataService.histDeliveryData);
+        UI.renderSmartMoneyAnalysis(smartMoneyAnalysis);
+        if (DataService.histDeliveryData) {
+            Charts.renderDeliveryHistoryChart(DataService.histDeliveryData);
+        }
     },
 
     startAutoRefresh() {

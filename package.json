@@ -5,11 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "sync": "node sync_bhavcopy.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.1",
+    "express": "^4.18.2",
+    "sqlite3": "^6.0.1",
     "stock-nse-india": "^1.1.0"
   }
 }

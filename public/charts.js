@@ -214,5 +214,86 @@ const Charts = {
         });
     },
 
+    renderDeliveryHistoryChart(histData) {
+        this.destroy('deliveryHistoryChart');
+        const ctx = document.getElementById('deliveryHistoryChart');
+        if (!ctx) return;
+
+        if (!histData || !histData.data || histData.data.length === 0) return;
+
+        const data = [...histData.data].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const labels = data.map(d => {
+            const date = new Date(d.date);
+            return `${date.getDate()}/${date.getMonth()+1}`;
+        });
+        const prices = data.map(d => d.closePrice);
+        const deliveryPcts = data.map(d => d.deliveryPercentage);
+
+        this.instances['deliveryHistoryChart'] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Close Price',
+                        data: prices,
+                        borderColor: CHART_COLORS.blue,
+                        backgroundColor: CHART_COLORS.blueBg,
+                        borderWidth: 2,
+                        yAxisID: 'yPrice',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Delivery %',
+                        data: deliveryPcts,
+                        borderColor: CHART_COLORS.green,
+                        backgroundColor: CHART_COLORS.greenBg,
+                        borderWidth: 2,
+                        yAxisID: 'yDeliv',
+                        type: 'bar',
+                        barPercentage: 0.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { grid: { color: CHART_COLORS.grid }, ticks: { color: CHART_COLORS.text, maxTicksLimit: 15 } },
+                    yPrice: { 
+                        type: 'linear', 
+                        display: true, 
+                        position: 'left',
+                        grid: { color: CHART_COLORS.grid }, 
+                        ticks: { color: CHART_COLORS.text },
+                        title: { display: true, text: 'Price (₹)', color: CHART_COLORS.text }
+                    },
+                    yDeliv: { 
+                        type: 'linear', 
+                        display: true, 
+                        position: 'right',
+                        grid: { drawOnChartArea: false }, 
+                        ticks: { color: CHART_COLORS.text, callback: v => v + '%' },
+                        title: { display: true, text: 'Delivery %', color: CHART_COLORS.text },
+                        min: 0,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#c9d1d9' } },
+                    tooltip: {
+                        backgroundColor: 'rgba(22, 27, 34, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#c9d1d9',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1
+                    }
+                }
+            }
+        });
+    },
+
     getATMAnnotation(data) { return {}; }
 };
