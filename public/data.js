@@ -59,20 +59,40 @@ const DataService = {
         let type = '';
         let fiiTrendText = '';
 
-        if (deliveryTrend > 2 && priceChange >= -2) {
-            title = '🟢 Slow Accumulation Detected';
-            fiiTrendText = '<br><br><b>FII / DII Holding:</b> Expected to be <b>INCREASING</b>. Heavy delivery buying while the price is stable heavily implies institutional accumulation.';
-            description = `Over the last 30 days, delivery percentage has been increasing (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price remained relatively stable or moved up (${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}%). This indicates that "smart money" might be slowly building a position in this stock without causing a price spike. This could be a good investment opportunity, suggesting a potential future price increase.` + fiiTrendText;
+        const deliverySurge = deliveryTrend > 1.5;
+        const deliveryDrop = deliveryTrend < -1.5;
+        const priceSurge = priceChange > 2.0;
+        const priceDrop = priceChange < -2.0;
+
+        if (deliverySurge && priceSurge) {
+            title = '🟢 Strong Accumulation (Bullish)';
+            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>HIGH</b>. Rising price backed by rising delivery volume indicates strong institutional accumulation.';
+            description = `Over the last 30 days, average delivery percentage has increased (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) alongside a price increase of +${priceChange.toFixed(2)}%. This is a textbook sign of "Smart Money" aggressively buying and taking delivery, suggesting a strong bullish trend.` + fiiTrendText;
             type = 'bullish';
-        } else if (deliveryTrend > 2 && priceChange < -2) {
-            title = '🔴 Distribution Detected';
-            fiiTrendText = '<br><br><b>FII / DII Holding:</b> Expected to be <b>DECREASING</b>. Heavy delivery while price is falling implies large institutions are dumping their holdings.';
-            description = `Over the last 30 days, delivery percentage has been increasing (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price has been falling (${priceChange.toFixed(2)}%). This suggests that large players might be slowly offloading their positions (distribution) to retail buyers. Proceed with caution.` + fiiTrendText;
+        } else if (deliverySurge && priceDrop) {
+            title = '🔴 Strong Distribution / Selling (Bearish)';
+            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>HIGH (Selling)</b>. Falling price backed by rising delivery volume indicates large players are actively offloading shares.';
+            description = `Over the last 30 days, average delivery percentage has increased (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price fell by ${priceChange.toFixed(2)}%. High delivery on falling prices typically signals distribution, where smart money dumps shares onto retail investors.` + fiiTrendText;
             type = 'bearish';
+        } else if ((!deliverySurge && !deliveryDrop) && (!priceSurge && !priceDrop)) {
+             title = '🟡 Consolidation';
+             fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>NEUTRAL</b>. The stock is consolidating with no clear institutional accumulation or distribution.';
+             description = `Both delivery percentage and price have remained relatively flat over the last 30 days. The stock is in a consolidation phase. Wait for a breakout in price accompanied by a surge in delivery.` + fiiTrendText;
+             type = 'neutral';
+        } else if (priceSurge && !deliverySurge) {
+            title = '⚠️ Speculative Rally (Caution)';
+            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>LOW</b>. The price is rising, but institutions are not taking heavy delivery.';
+            description = `The stock price has rallied by +${priceChange.toFixed(2)}%, but the delivery percentage has NOT increased (currently averaging ${avgDeliverySecondHalf.toFixed(1)}%). This indicates the rally is largely driven by intraday speculation or short-covering rather than long-term institutional investment. Be cautious of a sudden reversal.` + fiiTrendText;
+            type = 'neutral';
+        } else if (priceDrop && !deliverySurge) {
+            title = '⚠️ Speculative Fall (Weak Bearish)';
+            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>LOW</b>. The price is falling, but without heavy delivery selling.';
+            description = `The stock price has fallen by ${priceChange.toFixed(2)}%, but the delivery percentage has NOT surged. This indicates the fall is likely driven by short-term traders rather than massive institutional liquidation. It may be nearing a support zone.` + fiiTrendText;
+            type = 'neutral';
         } else {
-            title = '🟡 Neutral / Indecisive';
-            fiiTrendText = '<br><br><b>FII / DII Holding:</b> Expected to be <b>STABLE / UNCHANGED</b>. No significant institutional activity detected.';
-            description = `The historical delivery data does not show a clear pattern of sustained accumulation or distribution. The delivery trend is mostly flat or random, and price action is mixed. Wait for a clearer trend to emerge before making investment decisions based on delivery.` + fiiTrendText;
+            title = '🟡 Mixed / Indecisive';
+            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>MIXED</b>. Conflicting signals between price and delivery.';
+            description = `The historical delivery data does not show a perfectly clear textbook pattern. Price changed by ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}% while delivery trended by ${deliveryTrend > 0 ? '+' : ''}${deliveryTrend.toFixed(2)}%. Wait for a clearer trend to emerge.` + fiiTrendText;
             type = 'neutral';
         }
 
