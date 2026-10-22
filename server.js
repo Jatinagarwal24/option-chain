@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { NseIndia } = require('stock-nse-india');
+const { NseClient } = require('./nse_client');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,7 +27,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const nseIndia = new NseIndia();
+const nseIndia = new NseClient();
 
 // Simple cache to avoid hammering NSE
 const cache = {};
