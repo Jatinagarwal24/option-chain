@@ -164,7 +164,8 @@ class GrowwClient {
                     if (!type) return;
                     const strike = parseFloat(rec.strike) / 100;
                     if (!strike || strike <= 0) return;
-                    (options[rec.name] = options[rec.name] || []).push({ expiryDate, strike, type });
+                    const lot = parseInt(rec.lotsize, 10) || 1;
+                    (options[rec.name] = options[rec.name] || []).push({ expiryDate, strike, type, lot });
                 } else if (rec.exch_seg === 'NSE' && (rec.symbol || '').endsWith('-EQ')) {
                     equityNames[rec.name] = true;
                 }
@@ -293,15 +294,19 @@ class GrowwClient {
             if (!meta || !q) return;
             matched++;
             const row = rows.get(meta.strike);
+            // Groww's oiDayChange/oiDayChangePerc use odd units; oi - prevOi
+            // matches NSE's change-in-OI exactly. Volume is in lots.
+            const oi = q.openInterest || 0;
+            const prevOi = q.prevOpenInterest || 0;
             row[meta.type] = {
                 strikePrice: meta.strike,
                 expiryDate: expiry,
                 underlying: symbol,
                 identifier: id,
-                openInterest: q.openInterest || 0,
-                changeinOpenInterest: q.oiDayChange || 0,
-                pchangeinOpenInterest: q.oiDayChangePerc || 0,
-                totalTradedVolume: q.volume || 0,
+                openInterest: oi,
+                changeinOpenInterest: oi - prevOi,
+                pchangeinOpenInterest: prevOi > 0 ? ((oi - prevOi) / prevOi) * 100 : 0,
+                totalTradedVolume: (q.volume || 0) * meta.lot,
                 impliedVolatility: 0, // frontend computes IV via Black-Scholes
                 lastPrice: q.ltp || 0,
                 change: q.dayChange || 0,
