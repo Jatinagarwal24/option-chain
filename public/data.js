@@ -59,7 +59,9 @@ const DataService = {
         const avgDeliverySecondHalf = data.slice(Math.floor(data.length/2)).reduce((sum, d) => sum + d.deliveryPercentage, 0) / Math.ceil(data.length/2);
         
         const prices = data.map(d => d.closePrice);
-        
+        const latestPrice = prices[prices.length - 1];
+        const deliveryTrend = avgDeliverySecondHalf - avgDeliveryFirstHalf;
+
         // --- Technical Indicators ---
         const calculateSMA = (arr, period) => {
             if (arr.length < period) return arr[arr.length - 1];
