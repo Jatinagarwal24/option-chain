@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { NseClient } = require('./nse_client');
+const { GrowwClient } = require('./groww_client');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,7 +27,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const nseIndia = new NseClient();
+const groww = new GrowwClient();
 
 // Simple cache to avoid hammering NSE
 const cache = {};
@@ -46,12 +46,12 @@ async function getCachedData(key, fetchFn) {
 // --- API Routes ---
 
 app.get('/api/version', (req, res) => {
-    res.json({ build: 'http2-nse-client-v2-debug' });
+    res.json({ build: 'groww-v1' });
 });
 
-app.get('/api/debug-nse', async (req, res) => {
+app.get('/api/debug-groww', async (req, res) => {
     try {
-        res.json(await nseIndia.debugNse());
+        res.json(await groww.debug());
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -63,7 +63,7 @@ app.get('/api/option-chain/indices', async (req, res) => {
     try {
         const cacheKey = `idx_${symbol}_${expiry}`;
         const data = await getCachedData(cacheKey, () =>
-            nseIndia.getIndexOptionChain(symbol, expiry ? expiry : undefined)
+            groww.getOptionChain(symbol, expiry)
         );
         console.log(`[API] Option chain for ${symbol} (${expiry || 'default'}): ${JSON.stringify(data).length} bytes`);
         res.json(data);
@@ -80,7 +80,7 @@ app.get('/api/symbols', async (req, res) => {
         if (cached && (Date.now() - cached.time) < 3600000) {
             return res.json(cached.data);
         }
-        const data = await nseIndia.getAllStockSymbols();
+        const data = await groww.getAllStockSymbols();
         cache['all_symbols'] = { data, time: Date.now() };
         res.json(data);
     } catch (error) {
@@ -159,67 +159,11 @@ app.get('/api/historical-delivery', async (req, res) => {
 
 app.get('/api/option-chain/equities', async (req, res) => {
     const symbol = req.query.symbol || 'RELIANCE';
+    const expiry = req.query.expiry || '';
     try {
-        const data = await getCachedData(`eq_${symbol}`, async () => {
-            const raw = await nseIndia.getEquityOptionChain(symbol);
-            if (!raw || !raw.data) return raw;
-
-            const rawData = raw.data;
-            const timestamp = raw.timestamp || new Date().toLocaleString();
-            let underlyingValue = 0;
-
-            const options = rawData.filter(x => x.instrumentType === 'OPTSTK' || x.instrumentType === 'OPTIDX');
-            if (options.length > 0) underlyingValue = options[0].underlyingValue;
-
-            const expirySet = new Set();
-            const strikeMap = {};
-
-            options.forEach(opt => {
-                if (!opt.expiryDate) return;
-                expirySet.add(opt.expiryDate);
-                const strike = parseFloat(opt.strikePrice);
-                if (!strikeMap[strike]) strikeMap[strike] = {};
-
-                if (!strikeMap[strike][opt.expiryDate]) {
-                    strikeMap[strike][opt.expiryDate] = { strikePrice: strike, expiryDate: opt.expiryDate };
-                }
-
-                const optObj = {
-                    strikePrice: strike,
-                    expiryDate: opt.expiryDate,
-                    underlying: opt.underlying,
-                    identifier: opt.identifier,
-                    openInterest: opt.openInterest,
-                    changeinOpenInterest: opt.changeinOpenInterest,
-                    pchangeinOpenInterest: opt.pchangeinOpenInterest,
-                    totalTradedVolume: opt.totalTradedVolume,
-                    impliedVolatility: opt.impliedVolatility || 0,
-                    lastPrice: opt.lastPrice,
-                    change: opt.change,
-                    pchange: opt.pchange,
-                    underlyingValue: opt.underlyingValue
-                };
-
-                if (opt.optionType === 'CE') strikeMap[strike][opt.expiryDate].CE = optObj;
-                if (opt.optionType === 'PE') strikeMap[strike][opt.expiryDate].PE = optObj;
-            });
-
-            // NSE usually sorts expiries by date natively, let's just parse them
-            const expiryDates = Array.from(expirySet).sort((a, b) => new Date(a) - new Date(b));
-            const dataList = [];
-            Object.keys(strikeMap).sort((a, b) => parseFloat(a) - parseFloat(b)).forEach(strike => {
-                Object.values(strikeMap[strike]).forEach(row => dataList.push(row));
-            });
-
-            return {
-                records: {
-                    timestamp,
-                    underlyingValue,
-                    expiryDates,
-                    data: dataList
-                }
-            };
-        });
+        const data = await getCachedData(`eq_${symbol}_${expiry}`, () =>
+            groww.getOptionChain(symbol, expiry)
+        );
         console.log(`[API] Option chain for ${symbol}: ${JSON.stringify(data).length} bytes`);
         res.json(data);
     } catch (error) {
@@ -228,16 +172,13 @@ app.get('/api/option-chain/equities', async (req, res) => {
     }
 });
 
-app.get('/api/market-status', async (req, res) => {
-    try {
-        const data = await getCachedData('market_status', () =>
-            nseIndia.getDataByEndpoint('/api/marketStatus')
-        );
-        res.json(data);
-    } catch (error) {
-        console.error('[API] Market status error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch market status' });
-    }
+app.get('/api/market-status', (req, res) => {
+    // IST market hours: Mon-Fri 09:15-15:30
+    const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
+    const day = ist.getUTCDay();
+    const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    const open = day >= 1 && day <= 5 && mins >= 555 && mins <= 930;
+    res.json({ marketState: [{ market: 'Capital Market', marketStatus: open ? 'Open' : 'Closed' }] });
 });
 
 
