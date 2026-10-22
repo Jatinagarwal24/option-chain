@@ -436,3 +436,9 @@ td.oi-bar-cell .oi-bar.pe-bar { left: 0; background: var(--accent-red); }
 .surge-high .surge-ratio { color: var(--accent-yellow); }
 .surge-high .surge-symbol { color: var(--accent-yellow); }
 .surge-mild .surge-ratio { color: var(--accent-green); }
+
+/* Fix: .greeks-table header inherited white text on a light background,
+   making column labels invisible (Greeks & Volume Surge tabs) */
+.greeks-table thead th { color: var(--text-primary); }
+#tab-volumeSurge .greeks-table thead th:nth-child(2),
+#tab-volumeSurge .greeks-table tbody td:nth-child(2) { text-align: left; }
