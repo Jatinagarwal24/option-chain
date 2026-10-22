@@ -422,3 +422,17 @@ td.oi-bar-cell .oi-bar.pe-bar { left: 0; background: var(--accent-red); }
     .charts-grid, .greeks-grid, .sr-grid { grid-template-columns: 1fr; }
     #mainContent { padding: 0.8rem 1rem; }
 }
+
+/* ===== Day/52W range card ===== */
+.metric-value.range-value { font-size: 0.95rem; letter-spacing: 0; }
+
+/* ===== Volume Surge tab ===== */
+.surge-row { cursor: pointer; }
+.surge-row:hover { background: var(--accent-blue-dim); }
+.surge-symbol { font-weight: 700; }
+.surge-ratio { font-family: var(--font-mono); font-weight: 700; }
+.surge-extreme .surge-ratio { color: var(--accent-red); }
+.surge-extreme .surge-symbol { color: var(--accent-red); }
+.surge-high .surge-ratio { color: var(--accent-yellow); }
+.surge-high .surge-symbol { color: var(--accent-yellow); }
+.surge-mild .surge-ratio { color: var(--accent-green); }

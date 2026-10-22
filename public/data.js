@@ -30,6 +30,12 @@ const DataService = {
         }
     },
 
+    async fetchVolumeSurge() {
+        const res = await fetch('/api/volume-surge');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    },
+
     async fetchHistoricalDelivery(symbol) {
         try {
             const res = await fetch(`/api/historical-delivery?symbol=${encodeURIComponent(symbol)}`);
@@ -52,47 +58,80 @@ const DataService = {
         const avgDeliveryFirstHalf = data.slice(0, Math.floor(data.length/2)).reduce((sum, d) => sum + d.deliveryPercentage, 0) / Math.floor(data.length/2);
         const avgDeliverySecondHalf = data.slice(Math.floor(data.length/2)).reduce((sum, d) => sum + d.deliveryPercentage, 0) / Math.ceil(data.length/2);
         
-        const deliveryTrend = avgDeliverySecondHalf - avgDeliveryFirstHalf;
+        const prices = data.map(d => d.closePrice);
+        
+        // --- Technical Indicators ---
+        const calculateSMA = (arr, period) => {
+            if (arr.length < period) return arr[arr.length - 1];
+            const slice = arr.slice(arr.length - period);
+            return slice.reduce((a, b) => a + b, 0) / period;
+        };
 
+        const calculateRSI = (arr, period = 14) => {
+            if (arr.length <= period) return 50;
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) {
+                const diff = arr[i] - arr[i-1];
+                if (diff > 0) gains += diff; else losses -= diff;
+            }
+            let avgGain = gains / period;
+            let avgLoss = losses / period;
+            
+            for (let i = period + 1; i < arr.length; i++) {
+                const diff = arr[i] - arr[i-1];
+                const gain = diff > 0 ? diff : 0;
+                const loss = diff < 0 ? -diff : 0;
+                avgGain = ((avgGain * (period - 1)) + gain) / period;
+                avgLoss = ((avgLoss * (period - 1)) + loss) / period;
+            }
+            if (avgLoss === 0) return 100;
+            const rs = avgGain / avgLoss;
+            return 100 - (100 / (1 + rs));
+        };
+
+        const sma20 = calculateSMA(prices, 20);
+        const rsi14 = calculateRSI(prices, 14);
+        
+        const isUptrend = latestPrice > sma20;
+        const isDowntrend = latestPrice < sma20;
+        
         let title = '';
         let description = '';
         let type = '';
-        let fiiTrendText = '';
 
         const deliverySurge = deliveryTrend > 1.5;
         const deliveryDrop = deliveryTrend < -1.5;
         const priceSurge = priceChange > 2.0;
         const priceDrop = priceChange < -2.0;
 
-        if (deliverySurge && priceSurge) {
-            title = '🟢 Strong Accumulation (Bullish)';
-            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>HIGH</b>. Rising price backed by rising delivery volume indicates strong institutional accumulation.';
-            description = `Over the last 30 days, average delivery percentage has increased (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) alongside a price increase of +${priceChange.toFixed(2)}%. This is a textbook sign of "Smart Money" aggressively buying and taking delivery, suggesting a strong bullish trend.` + fiiTrendText;
+        // Enhanced Logic with RSI and SMA filters
+        if (deliverySurge && priceSurge && isUptrend && rsi14 < 70) {
+            title = '🟢 High-Conviction Buy (Strong Accumulation)';
+            description = `Over the last 30 days, average delivery percentage increased (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) alongside a +${priceChange.toFixed(2)}% price surge.`;
             type = 'bullish';
-        } else if (deliverySurge && priceDrop) {
-            title = '🔴 Strong Distribution / Selling (Bearish)';
-            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>HIGH (Selling)</b>. Falling price backed by rising delivery volume indicates large players are actively offloading shares.';
-            description = `Over the last 30 days, average delivery percentage has increased (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price fell by ${priceChange.toFixed(2)}%. High delivery on falling prices typically signals distribution, where smart money dumps shares onto retail investors.` + fiiTrendText;
+        } else if (deliverySurge && priceDrop && isDowntrend && rsi14 > 30) {
+            title = '🔴 High-Conviction Sell (Strong Distribution)';
+            description = `Over the last 30 days, average delivery percentage increased (from ${avgDeliveryFirstHalf.toFixed(1)}% to ${avgDeliverySecondHalf.toFixed(1)}%) while the price fell by ${priceChange.toFixed(2)}%.`;
             type = 'bearish';
+        } else if (deliverySurge && priceSurge && (rsi14 >= 70 || !isUptrend)) {
+             title = '⚠️ Late Accumulation (Overbought Risk)';
+             description = `Delivery percentage and price are rising, indicating accumulation, BUT the technical indicators show the stock is severely overextended. Buying now carries high pullback risk.`;
+             type = 'bullish';
         } else if ((!deliverySurge && !deliveryDrop) && (!priceSurge && !priceDrop)) {
              title = '🟡 Consolidation';
-             fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>NEUTRAL</b>. The stock is consolidating with no clear institutional accumulation or distribution.';
-             description = `Both delivery percentage and price have remained relatively flat over the last 30 days. The stock is in a consolidation phase. Wait for a breakout in price accompanied by a surge in delivery.` + fiiTrendText;
+             description = `Both delivery percentage and price have remained relatively flat over the last 30 days. The stock is in a consolidation phase. Wait for a breakout in price accompanied by a surge in delivery.`;
              type = 'neutral';
         } else if (priceSurge && !deliverySurge) {
             title = '⚠️ Speculative Rally (Caution)';
-            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>LOW</b>. The price is rising, but institutions are not taking heavy delivery.';
-            description = `The stock price has rallied by +${priceChange.toFixed(2)}%, but the delivery percentage has NOT increased (currently averaging ${avgDeliverySecondHalf.toFixed(1)}%). This indicates the rally is largely driven by intraday speculation or short-covering rather than long-term institutional investment. Be cautious of a sudden reversal.` + fiiTrendText;
+            description = `The stock price has rallied by +${priceChange.toFixed(2)}%, but the delivery percentage has NOT increased (currently averaging ${avgDeliverySecondHalf.toFixed(1)}%). This indicates the rally is largely driven by intraday speculation or short-covering rather than long-term institutional investment. Be cautious of a sudden reversal.`;
             type = 'neutral';
         } else if (priceDrop && !deliverySurge) {
             title = '⚠️ Speculative Fall (Weak Bearish)';
-            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>LOW</b>. The price is falling, but without heavy delivery selling.';
-            description = `The stock price has fallen by ${priceChange.toFixed(2)}%, but the delivery percentage has NOT surged. This indicates the fall is likely driven by short-term traders rather than massive institutional liquidation. It may be nearing a support zone.` + fiiTrendText;
+            description = `The stock price has fallen by ${priceChange.toFixed(2)}%, but the delivery percentage has NOT surged. This indicates the fall is likely driven by short-term traders rather than massive institutional liquidation. It may be nearing a support zone.`;
             type = 'neutral';
         } else {
             title = '🟡 Mixed / Indecisive';
-            fiiTrendText = '<br><br><b>Institutional Conviction:</b> <b>MIXED</b>. Conflicting signals between price and delivery.';
-            description = `The historical delivery data does not show a perfectly clear textbook pattern. Price changed by ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}% while delivery trended by ${deliveryTrend > 0 ? '+' : ''}${deliveryTrend.toFixed(2)}%. Wait for a clearer trend to emerge.` + fiiTrendText;
+            description = `The historical delivery data does not show a perfectly clear textbook pattern. Price changed by ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}% while delivery trended by ${deliveryTrend > 0 ? '+' : ''}${deliveryTrend.toFixed(2)}%. Wait for a clearer trend to emerge.`;
             type = 'neutral';
         }
 
@@ -186,7 +225,8 @@ const DataService = {
             totalCEOI, totalPEOI, totalCEOIChg, totalPEOIChg,
             totalCEVol, totalPEVol, atmCEIV, atmPEIV, pcr, maxPain,
             timestamp: records.timestamp || new Date().toLocaleString(),
-            strikeDifference: records.strikeDifference
+            strikeDifference: records.strikeDifference,
+            underlyingInfo: records.underlyingInfo || null
         };
     },
 

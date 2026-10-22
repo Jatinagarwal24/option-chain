@@ -31,6 +31,7 @@ const App = {
                 btn.classList.add('active');
                 const tab = document.getElementById('tab-' + btn.dataset.tab);
                 if (tab) tab.classList.add('active');
+                if (btn.dataset.tab === 'volumeSurge') this.loadVolumeSurge();
             });
         });
 
@@ -108,6 +109,33 @@ const App = {
             this.showLoading(false);
             if (btn) btn.classList.remove('spinning');
             this.resetCountdown();
+        }
+    },
+
+    surgeCache: null,
+    surgeCacheTime: 0,
+    surgeLoading: false,
+
+    async loadVolumeSurge() {
+        // serve the cached scan for 5 minutes
+        if (this.surgeCache && (Date.now() - this.surgeCacheTime) < 300000) {
+            UI.renderVolumeSurge(this.surgeCache);
+            return;
+        }
+        if (this.surgeLoading) return;
+        this.surgeLoading = true;
+        const tbody = document.getElementById('volumeSurgeBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="loading-cell">Scanning ~190 F&O stocks, this takes a few seconds…</td></tr>';
+        try {
+            const result = await DataService.fetchVolumeSurge();
+            this.surgeCache = result;
+            this.surgeCacheTime = Date.now();
+            UI.renderVolumeSurge(result);
+        } catch (err) {
+            console.error('Volume surge failed:', err);
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loading-cell">❌ Scan failed: ${err.message}. Click the tab again to retry.</td></tr>`;
+        } finally {
+            this.surgeLoading = false;
         }
     },
 

@@ -199,20 +199,69 @@ class GrowwClient {
         return `${name}${yy}${mid}${strikeToken(strike)}${type}`;
     }
 
-    async fetchSpot(symbol) {
+    async fetchSpotInfo(symbol) {
+        const empty = { ltp: 0, dayHigh: 0, dayLow: 0, open: 0, prevClose: 0, yearHigh: 0, yearLow: 0, dayChange: 0, dayChangePerc: 0 };
         try {
-            if (INDICES[symbol]) {
-                const d = await httpJson('GET',
-                    `${GROWW_BASE}/v1/api/stocks_data/v1/tr_live_indices/exchange/NSE/segment/CASH/${encodeURIComponent(symbol)}/latest`);
-                return d.value || d.ltp || 0;
-            }
-            const d = await httpJson('GET',
-                `${GROWW_BASE}/v1/api/stocks_data/v1/tr_live_prices/exchange/NSE/segment/CASH/${encodeURIComponent(symbol)}/latest`);
-            return d.ltp || 0;
+            const isIndex = !!INDICES[symbol];
+            const d = await httpJson('GET', isIndex
+                ? `${GROWW_BASE}/v1/api/stocks_data/v1/tr_live_indices/exchange/NSE/segment/CASH/${encodeURIComponent(symbol)}/latest`
+                : `${GROWW_BASE}/v1/api/stocks_data/v1/tr_live_prices/exchange/NSE/segment/CASH/${encodeURIComponent(symbol)}/latest`);
+            return {
+                ltp: (isIndex ? d.value : d.ltp) || 0,
+                dayHigh: d.high || 0,
+                dayLow: d.low || 0,
+                open: d.open || 0,
+                prevClose: d.close || 0, // Groww's "close" is the previous close
+                yearHigh: d.yearHighPrice || 0,
+                yearLow: d.yearLowPrice || 0,
+                dayChange: d.dayChange || 0,
+                dayChangePerc: d.dayChangePerc || 0
+            };
         } catch (e) {
             console.error(`[Groww] Spot fetch failed for ${symbol}:`, e.message);
-            return 0;
+            return empty;
         }
+    }
+
+    /**
+     * Scan F&O stocks for unusual volume: latest trading day's volume vs the
+     * 20-day average. One daily-candles request per symbol, 5 in flight.
+     */
+    async getVolumeSurge() {
+        await this.ensureMaster();
+        const names = Object.keys(this.options).filter(n => this.equityNames[n]).sort();
+        const end = Date.now();
+        const start = end - 60 * 86400000;
+        const results = [];
+        let idx = 0;
+        await Promise.all(Array.from({ length: 5 }, async () => {
+            while (idx < names.length) {
+                const sym = names[idx++];
+                try {
+                    const d = await httpJson('GET',
+                        `${GROWW_BASE}/v1/api/charting_service/v4/chart/exchange/NSE/segment/CASH/${encodeURIComponent(sym)}` +
+                        `?endTimeInMillis=${end}&intervalInMinutes=1440&startTimeInMillis=${start}`);
+                    const candles = (d && d.candles) || [];
+                    if (candles.length < 8) continue;
+                    const last = candles[candles.length - 1];
+                    const hist = candles.slice(0, -1).slice(-20);
+                    const avgVolume = hist.reduce((s, c) => s + (c[5] || 0), 0) / hist.length;
+                    if (!avgVolume) continue;
+                    const prevClose = candles[candles.length - 2][4];
+                    const todayVolume = last[5] || 0;
+                    results.push({
+                        symbol: sym,
+                        ltp: last[4],
+                        changePerc: prevClose ? ((last[4] - prevClose) / prevClose) * 100 : 0,
+                        todayVolume,
+                        avgVolume: Math.round(avgVolume),
+                        ratio: todayVolume / avgVolume
+                    });
+                } catch (e) { /* skip symbol */ }
+            }
+        }));
+        results.sort((a, b) => b.ratio - a.ratio);
+        return { generatedAt: istTimestamp(), count: results.length, data: results };
     }
 
     async fetchQuotes(contractIds) {
@@ -261,7 +310,8 @@ class GrowwClient {
             }
         });
 
-        const spot = await this.fetchSpot(symbol);
+        const spotInfo = await this.fetchSpotInfo(symbol);
+        const spot = spotInfo.ltp;
 
         // strikes for the chosen expiry, trimmed around ATM
         const chosen = opts.filter(o => o.expiryDate.getTime() === expiryDate.getTime());
@@ -324,6 +374,7 @@ class GrowwClient {
             records: {
                 timestamp: istTimestamp(),
                 underlyingValue: spot,
+                underlyingInfo: spotInfo,
                 expiryDates,
                 data: [...rows.values()].sort((a, b) => a.strikePrice - b.strikePrice)
             }
@@ -340,7 +391,7 @@ class GrowwClient {
             return out;
         }
         try {
-            out.spotNifty = await this.fetchSpot('NIFTY');
+            out.spotNifty = (await this.fetchSpotInfo('NIFTY')).ltp;
         } catch (e) {
             out.spotNifty = `FAILED: ${e.message}`;
         }

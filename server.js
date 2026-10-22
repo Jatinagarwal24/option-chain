@@ -46,7 +46,27 @@ async function getCachedData(key, fetchFn) {
 // --- API Routes ---
 
 app.get('/api/version', (req, res) => {
-    res.json({ build: 'groww-v1' });
+    res.json({ build: 'groww-v2' });
+});
+
+// Volume surge scan is heavy (~190 upstream calls), so cache for 5 minutes
+// and share one in-flight scan between concurrent requests.
+let surgeScan = { promise: null, data: null, time: 0 };
+app.get('/api/volume-surge', async (req, res) => {
+    try {
+        if (surgeScan.data && (Date.now() - surgeScan.time) < 300000) {
+            return res.json(surgeScan.data);
+        }
+        if (!surgeScan.promise) {
+            surgeScan.promise = groww.getVolumeSurge()
+                .then(data => { surgeScan = { promise: null, data, time: Date.now() }; return data; })
+                .catch(err => { surgeScan.promise = null; throw err; });
+        }
+        res.json(await surgeScan.promise);
+    } catch (error) {
+        console.error('[API] Volume surge error:', error.message);
+        res.status(500).json({ error: 'Failed to scan volumes', details: error.message });
+    }
 });
 
 app.get('/api/debug-groww', async (req, res) => {

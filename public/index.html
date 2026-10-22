@@ -122,6 +122,14 @@
             <div class="metric-value" id="volumeValue">--</div>
             <div class="metric-sub" id="volumeSub">CE: -- | PE: --</div>
         </div>
+        <div class="metric-card" id="rangeCard">
+            <div class="metric-header">
+                <span class="metric-icon">📏</span>
+                <span class="metric-title">DAY RANGE</span>
+            </div>
+            <div class="metric-value range-value" id="dayRangeValue">--</div>
+            <div class="metric-sub" id="yearRangeSub">52W: --</div>
+        </div>
 
     </section>
 
@@ -133,6 +141,7 @@
         <button class="tab-btn" data-tab="supportResistance">Support & Resistance</button>
         <button class="tab-btn" data-tab="greeks">Greeks & IV</button>
         <button class="tab-btn" data-tab="smartMoney">Smart Money Analysis</button>
+        <button class="tab-btn" data-tab="volumeSurge">Volume Surge</button>
     </nav>
 
     <!-- Main Content Area -->
@@ -364,6 +373,33 @@
                     <p class="sr-desc">Analyze how delivery percentage corresponds with price movement to identify slow accumulation or distribution by smart money.</p>
                     <div class="chart-container wide">
                         <canvas id="deliveryHistoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Tab: Volume Surge -->
+        <div class="tab-content" id="tab-volumeSurge">
+            <div class="sr-grid">
+                <div class="sr-card full-width">
+                    <h3>🔥 Unusual Volume — F&amp;O Stocks</h3>
+                    <p class="sr-desc">Stocks trading at much higher volume than their 20-day average. A spike above 2× normal often signals institutional activity or news. <span id="surgeUpdated"></span></p>
+                    <div class="table-scroll greeks-table-scroll">
+                        <table class="greeks-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Symbol</th>
+                                    <th>LTP</th>
+                                    <th>Chg %</th>
+                                    <th>Volume</th>
+                                    <th>20D Avg Vol</th>
+                                    <th>× Normal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="volumeSurgeBody">
+                                <tr><td colspan="7" class="loading-cell">Open this tab to scan…</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

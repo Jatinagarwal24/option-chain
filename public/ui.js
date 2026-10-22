@@ -112,11 +112,63 @@ const UI = {
         const spEl = document.querySelector('.spot-value');
         if (spEl) spEl.textContent = formatPrice(data.spotPrice);
 
+        // Spot day change
+        const spChg = document.getElementById('spotChange');
+        const info = data.underlyingInfo;
+        if (spChg && info && info.prevClose) {
+            spChg.textContent = `${info.dayChange >= 0 ? '+' : ''}${info.dayChange.toFixed(2)} (${formatPercent(info.dayChangePerc)})`;
+            spChg.className = `spot-change ${info.dayChange >= 0 ? 'up' : 'down'}`;
+        }
+
+        // Day / 52-week range
+        const drEl = document.getElementById('dayRangeValue');
+        const yrEl = document.getElementById('yearRangeSub');
+        if (drEl) drEl.textContent = (info && info.dayLow) ? `${formatPrice(info.dayLow)} – ${formatPrice(info.dayHigh)}` : '--';
+        if (yrEl) yrEl.textContent = (info && info.yearLow) ? `52W: ${formatPrice(info.yearLow)} – ${formatPrice(info.yearHigh)}` : '52W: --';
+
         // Timestamp
         const tsEl = document.getElementById('lastUpdated');
         if (tsEl) tsEl.textContent = `Last Updated: ${data.timestamp}`;
 
 
+    },
+
+    renderVolumeSurge(result) {
+        const tbody = document.getElementById('volumeSurgeBody');
+        if (!tbody) return;
+        if (!result || !result.data || !result.data.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading-cell">No data available</td></tr>';
+            return;
+        }
+        const upd = document.getElementById('surgeUpdated');
+        if (upd) upd.textContent = `(Updated: ${result.generatedAt})`;
+
+        tbody.innerHTML = result.data.map((r, i) => {
+            const surgeClass = r.ratio >= 3 ? 'surge-extreme' : (r.ratio >= 2 ? 'surge-high' : (r.ratio >= 1.5 ? 'surge-mild' : ''));
+            return `<tr class="surge-row ${surgeClass}" data-symbol="${r.symbol}" title="Click to load option chain">
+                <td>${i + 1}</td>
+                <td class="surge-symbol">${r.symbol}</td>
+                <td>${formatPrice(r.ltp)}</td>
+                <td class="${getChangeClass(r.changePerc)}">${formatPercent(r.changePerc)}</td>
+                <td>${formatNumber(r.todayVolume)}</td>
+                <td>${formatNumber(r.avgVolume)}</td>
+                <td class="surge-ratio">${r.ratio.toFixed(2)}×</td>
+            </tr>`;
+        }).join('');
+
+        // click a row -> load that symbol's option chain
+        tbody.querySelectorAll('.surge-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const input = document.getElementById('symbolSelect');
+                if (input) {
+                    input.value = row.dataset.symbol;
+                    const expSel = document.getElementById('expirySelect');
+                    if (expSel) expSel.value = '';
+                    document.querySelector('.tab-btn[data-tab="optionChain"]')?.click();
+                    App.loadData();
+                }
+            });
+        });
     },
 
     renderPositions(data) {
