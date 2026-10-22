@@ -45,6 +45,10 @@ async function getCachedData(key, fetchFn) {
 
 // --- API Routes ---
 
+app.get('/api/version', (req, res) => {
+    res.json({ build: 'http2-nse-client-v1' });
+});
+
 app.get('/api/option-chain/indices', async (req, res) => {
     const symbol = req.query.symbol || 'NIFTY';
     const expiry = req.query.expiry || '';
