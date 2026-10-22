@@ -138,6 +138,77 @@ class NseClient {
         return this.getDataByEndpoint(`/api/option-chain-contract-info?symbol=${encodeURIComponent(indexSymbol.toUpperCase())}`);
     }
 
+    /**
+     * Tries several request strategies against NSE and reports what each one
+     * returns. Used via /api/debug-nse to diagnose blocking on cloud hosts.
+     */
+    async debugNse() {
+        const browserPageHeaders = {
+            'user-agent': USER_AGENT,
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'accept-language': 'en-US,en;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
+            'upgrade-insecure-requests': '1',
+            'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'none',
+            'sec-fetch-user': '?1',
+            'cache-control': 'max-age=0'
+        };
+        const apiHeaders = cookie => ({
+            'user-agent': USER_AGENT,
+            'accept': '*/*',
+            'accept-language': 'en-US,en;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
+            'referer': 'https://www.nseindia.com/get-quotes/equity?symbol=TCS',
+            'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            ...(cookie ? { cookie } : {})
+        });
+
+        const attempt = async (label, path, headers) => {
+            try {
+                const res = await h2get(path, headers);
+                const setCookies = res.headers['set-cookie'];
+                const list = setCookies ? (Array.isArray(setCookies) ? setCookies : [setCookies]) : [];
+                return {
+                    label,
+                    status: res.status,
+                    bodyLength: res.body.length,
+                    snippet: res.body.slice(0, 150).replace(/\s+/g, ' '),
+                    setCookieCount: list.length,
+                    cookieNames: list.map(c => c.split('=')[0]),
+                    cookies: list.map(c => c.split(';')[0]).join('; ')
+                };
+            } catch (err) {
+                return { label, error: err.message };
+            }
+        };
+
+        const results = [];
+        const pageBasic = await attempt('page: basic headers', '/get-quotes/equity?symbol=TCS', this.baseHeaders());
+        results.push(pageBasic);
+        const pageBrowser = await attempt('page: full browser headers', '/get-quotes/equity?symbol=TCS', browserPageHeaders);
+        results.push(pageBrowser);
+        results.push(await attempt('api: no cookies', '/api/marketStatus', apiHeaders(null)));
+        if (pageBasic.cookies) {
+            results.push(await attempt('api: cookies from basic page', '/api/marketStatus', apiHeaders(pageBasic.cookies)));
+        }
+        if (pageBrowser.cookies) {
+            results.push(await attempt('api: cookies from browser page', '/api/marketStatus', apiHeaders(pageBrowser.cookies)));
+        }
+        // strip cookie values from output, keep names only
+        results.forEach(r => { delete r.cookies; });
+        return results;
+    }
+
     async getIndexOptionChain(indexSymbol, expiry) {
         if (!expiry) {
             const contractInfo = await this.getIndexOptionChainContractInfo(indexSymbol);

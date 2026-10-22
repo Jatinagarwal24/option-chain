@@ -46,7 +46,15 @@ async function getCachedData(key, fetchFn) {
 // --- API Routes ---
 
 app.get('/api/version', (req, res) => {
-    res.json({ build: 'http2-nse-client-v1' });
+    res.json({ build: 'http2-nse-client-v2-debug' });
+});
+
+app.get('/api/debug-nse', async (req, res) => {
+    try {
+        res.json(await nseIndia.debugNse());
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.get('/api/option-chain/indices', async (req, res) => {
